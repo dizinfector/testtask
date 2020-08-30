@@ -38,6 +38,6 @@ object AnalyzerApp extends StatServiceAware {
   }
 
   def await[T](f: Future[T]): T = {
-    Await.result(f, 5.seconds)
+    Await.result(f, 60.seconds)
   }
 }

@@ -4,6 +4,7 @@ import com.tt.common.model.Snapshot
 import com.tt.storage.db._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.storage.StorageLevel
 
 class SnapshotSaver(implicit storage: Storage) {
 
@@ -14,19 +15,13 @@ class SnapshotSaver(implicit storage: Storage) {
     import Storage.implicits._
     import sparkSession.sqlContext.implicits._
 
+    snapshots.persist(StorageLevel.MEMORY_ONLY_SER)
+
     val dmps = zipRDDWithId(snapshots.map(_.dmpId))
 
     val countries = zipRDDWithId(snapshots.flatMap(_.countries.keySet).distinct())
 
     val cities = zipRDDWithId(snapshots.flatMap(_.cities.getOrElse(Map.empty).keySet).distinct())
-
-
-    val dmpIdStrSnapshots = snapshots.map{ s => (s.dmpId, s) }
-
-    val dmpIdSnapshots = dmps.join(dmpIdStrSnapshots).map {
-      case (_, (dmpId, snapshot)) => (dmpId, snapshot)
-    }
-
 
     dmps
       .map { case (dmp, id) => DmpIdentifiable(dmp, id) }
@@ -39,6 +34,17 @@ class SnapshotSaver(implicit storage: Storage) {
     cities
       .map { case (city, id) => CityIdentifiable(id, city) }
       .save(CityIdentifiable)
+
+
+    val dmpIdStrSnapshots = snapshots.map{ s => (s.dmpId, s) }
+
+    snapshots.unpersist()
+
+    val dmpIdSnapshots = dmps.join(dmpIdStrSnapshots).map {
+      case (_, (dmpId, snapshot)) => (dmpId, snapshot)
+    }
+
+    dmpIdSnapshots.persist(StorageLevel.MEMORY_ONLY_SER)
 
     dmpIdSnapshots
       .map{
