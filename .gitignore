@@ -2,5 +2,4 @@
 target/
 docker/app-data/*
 !docker/app-data/.gitkeep
-project
 other
